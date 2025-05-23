@@ -1,3 +1,5 @@
+import string
+
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from email_reply_parser import EmailReplyParser
@@ -12,28 +14,26 @@ import quopri
 import re
 import rules
 import sys
-import time
 import unicodecsv as csv
 
 # converts seconds since epoch to mm/dd/yyyy string
-def get_date(second_since_epoch, date_format):
-    if second_since_epoch is None:
+def get_date(date_header, date_format):
+    if date_header is None:
         return None
-    time_tuple = parsedate_tz(email["date"])
-    utc_seconds_since_epoch = mktime_tz(time_tuple)
-    datetime_obj = datetime.datetime.fromtimestamp(utc_seconds_since_epoch)
-    return datetime_obj.strftime(date_format)
+    try:
+        time_tuple = parsedate_tz(date_header)
+        utc_seconds_since_epoch = mktime_tz(time_tuple)
+        datetime_obj = datetime.datetime.fromtimestamp(utc_seconds_since_epoch)
+        return datetime_obj.strftime(date_format)
+    except Exception:
+        return None
 
 # clean content
 def clean_content(content):
-    # decode message from "quoted printable" format
     content = quopri.decodestring(content)
-
-    # try to strip HTML tags
-    # if errors happen in BeautifulSoup (for unknown encodings), then bail
     try:
         soup = BeautifulSoup(content, "html.parser", from_encoding="iso-8859-1")
-    except Exception as e:
+    except Exception:
         return ''
     return ''.join(soup.find_all(string=True))
 
@@ -47,7 +47,6 @@ def get_content(email):
 
         content = part.get_payload(decode=True)
 
-        part_contents = ""
         if content is None:
             part_contents = ""
         else:
@@ -55,16 +54,13 @@ def get_content(email):
 
         parts.append(part_contents)
 
-    return parts[0]
+    return parts[0] if parts else ""
 
 # get all emails in field
 def get_emails_clean(field):
-    # find all matches with format <user@example.com> or user@example.com
     matches = re.findall(r'\<?([a-zA-Z0-9_\-\.]+@[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,5})\>?', str(field))
     if matches:
-        emails_cleaned = []
-        for match in matches:
-            emails_cleaned.append(match.lower())
+        emails_cleaned = [match.lower() for match in matches]
         unique_emails = list(set(emails_cleaned))
         return sorted(unique_emails, key=str.lower)
     else:
@@ -80,41 +76,47 @@ if __name__ == '__main__':
     else:
         mbox_file = argv[1]
 
-    # load environment settings
+
     load_dotenv(verbose=True)
-
-
     file_name = ntpath.basename(mbox_file).lower()
     export_file_name = mbox_file + ".csv"
     export_file = open(export_file_name, "wb")
 
-    # get owner(s) of the mbox
+    # Load owner mapping if exists
     owners = []
     if os.path.exists(".owners"):
         with open('.owners', 'r') as ownerlist:
-            contents = ownerlist.read()
-            owner_dict = ast.literal_eval(contents)
-        # find owners
+            owner_dict = ast.literal_eval(ownerlist.read())
         for owners_array_key in owner_dict:
             if owners_array_key in file_name:
-                for owner_key in owner_dict[owners_array_key]:
-                    owners.append(owner_key)
+                owners.extend(owner_dict[owners_array_key])
 
-    # get domain blacklist
+    # Load domain blacklist if exists
     blacklist_domains = []
     if os.path.exists(".blacklist"):
         with open('.blacklist', 'r') as blacklist:
             blacklist_domains = [domain.rstrip() for domain in blacklist.readlines()]
 
-    # create CSV with header row
-    writer = csv.writer(export_file, encoding='utf-8', delimiter="\n", quotechar="\n")
-    # writer.writerow(["flagged", "date", "description", "from", "to", "cc", "subject", "content", "time (minutes)"])
+    writer = csv.writer(export_file, delimiter="\n", quotechar="\n")
 
-    # create row count
-    row_written = 0
+    # --- COLLECT AND SORT EMAILS ---
+    emails_with_dates = []
 
     for email in mailbox.mbox(mbox_file):
-        # capture default content
+        try:
+            time_tuple = parsedate_tz(email["date"])
+            utc_seconds_since_epoch = mktime_tz(time_tuple)
+        except Exception:
+            utc_seconds_since_epoch = 0  # fallback if date is missing or unparsable
+        emails_with_dates.append((utc_seconds_since_epoch, email))
+
+    # Sort emails by timestamp
+    emails_with_dates.sort(key=lambda tup: tup[0])
+
+    # --- PROCESS SORTED EMAILS ---
+    row_written = 0
+
+    for _, email in emails_with_dates:
         date = get_date(email["date"], os.getenv("DATE_FORMAT"))
         sent_from = get_emails_clean(email["from"])
         sent_to = get_emails_clean(email["to"])
@@ -122,17 +124,13 @@ if __name__ == '__main__':
         subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
         contents = get_content(email)
 
-        # apply rules to default content
         row = rules.apply_rules(date, sent_from, sent_to, cc, subject, contents, owners, blacklist_domains)
-
-        # write the row
         writer.writerow(row)
         row_written += 1
 
-    # report
-    report = "generated " + export_file_name + " for " + str(row_written) + " messages"
-    report += " (" + str(rules.cant_convert_count) + " could not convert; "
-    report += str(rules.blacklist_count) + " blacklisted)"
+    report = (
+        f"generated {export_file_name} for {row_written} messages "
+        f"({rules.cant_convert_count} could not convert; {rules.blacklist_count} blacklisted)"
+    )
     print(report)
-
     export_file.close()
