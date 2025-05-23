@@ -115,29 +115,45 @@ if __name__ == '__main__':
     emails_with_dates.sort(key=lambda tup: tup[0])
 
     # --- PROCESS SORTED EMAILS ---
+
+    max_days = 91
     row_written = 0
+    file_index = 1
+    last_date = None
+    f = None
 
-    with open(export_file_name, 'wb') as f:
-        for _, email in emails_with_dates:
-            date = get_date(email["date"], os.getenv("DATE_FORMAT"))
-            sent_from = get_emails_clean(email["from"])
-            sent_to = get_emails_clean(email["to"])
-            cc = get_emails_clean(email["cc"])
-            subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
-            contents = get_content(email)
+    for _, email in emails_with_dates:
+        # Vergleiche mit letzter Datei
+        date_str = get_date(email["date"], os.getenv("DATE_FORMAT"))
+        email_date = datetime.datetime.strptime(date_str, os.getenv("DATE_FORMAT"))
 
-            row = rules.apply_rules(
-                date,
-                sent_from,
-                sent_to,
-                cc,
-                subject,
-                contents,
-                owners,
-                blacklist_domains,
-            )
-            f.write("\n".join(row).encode("latin_1"))
-            row_written += 1
+        if last_date is None or (email_date - last_date).days > max_days:
+            if f:
+                f.close()
+            filename = f"{export_file_name}_{file_index:03}.txt"
+            f = open(filename, 'wb')
+            print(f"Write new wile: {filename}")
+            file_index += 1
+            last_date = email_date
+
+        sent_from = get_emails_clean(email["from"])
+        sent_to = get_emails_clean(email["to"])
+        cc = get_emails_clean(email["cc"])
+        subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
+        contents = get_content(email)
+
+        row = rules.apply_rules(
+            date_str,
+            sent_from,
+            sent_to,
+            cc,
+            subject,
+            contents,
+            owners,
+            blacklist_domains,
+        )
+        f.write("\n".join(row).encode("latin_1"))
+        row_written += 1
 
     report = (
         f"generated {export_file_name} for {row_written} messages "
