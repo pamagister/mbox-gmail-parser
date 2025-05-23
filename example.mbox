@@ -6,7 +6,7 @@ Received: by 10.100.138.214 with HTTP; Fri, 4 Aug 2017 07:53:42 -0700 (PDT)
 Date: Fri, 4 Aug 2017 09:53:42 -0500
 Delivered-To: tester1@example.com
 Message-ID: <CAGiad1XXSzfyxj6WrTwzu3cJMu2zdA++MJH3dpStpZPbzjtRjw@mail.gmail.com>
-Subject: Another Email
+Subject: Another Email with ä ö ü special chars ß
 From: Tester Two <tester2@example.com>
 To: Tester One <tester1@example.com>
 Content-Type: multipart/alternative; boundary="94eb2c1c0a58c3c6580555eea9a1"

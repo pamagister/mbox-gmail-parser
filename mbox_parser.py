@@ -6,6 +6,7 @@ import os
 import quopri
 import re
 import sys
+from email.header import decode_header
 from email.utils import parsedate_tz, mktime_tz
 
 from bs4 import BeautifulSoup
@@ -29,12 +30,22 @@ def get_date(date_header, date_format):
 
 
 # clean content
-def clean_content(content):
-    content = quopri.decodestring(content)
+def clean_content(content_bytes):
+    # decode quoted-printable
+    content_bytes = quopri.decodestring(content_bytes)
+
+    # Versuche zuerst UTF-8, fallback auf ISO-8859-1
     try:
-        soup = BeautifulSoup(content, "html.parser", from_encoding="iso-8859-1")
-    except Exception:
+        content_str = content_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        content_str = content_bytes.decode("iso-8859-1", errors="replace")
+
+    # HTML-Tags entfernen
+    try:
+        soup = BeautifulSoup(content_str, "html.parser")
+    except Exception as e:
         return ''
+
     return ''.join(soup.find_all(string=True))
 
 
@@ -69,6 +80,22 @@ def get_emails_clean(field):
         return sorted(unique_emails, key=str.lower)
     else:
         return []
+
+
+def decode_mime_header(value):
+    if not value:
+        return ''
+    decoded_fragments = decode_header(value)
+    result = ''
+    for text, encoding in decoded_fragments:
+        if isinstance(text, bytes):
+            try:
+                result += text.decode(encoding or 'utf-8', errors='replace')
+            except Exception:
+                result += text.decode('utf-8', errors='replace')
+        else:
+            result += text
+    return result
 
 
 # entry point
@@ -139,7 +166,7 @@ if __name__ == '__main__':
         sent_from = get_emails_clean(email["from"])
         sent_to = get_emails_clean(email["to"])
         cc = get_emails_clean(email["cc"])
-        subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
+        subject = decode_mime_header((email["subject"]))
         contents = get_content(email)
 
         row = rules.apply_rules(
@@ -152,7 +179,7 @@ if __name__ == '__main__':
             owners,
             blacklist_domains,
         )
-        f.write("\n".join(row).encode("latin_1"))
+        f.write("\n".join(row).encode("utf-8"))
         row_written += 1
 
     report = (
