@@ -74,62 +74,65 @@ def get_emails_clean(field):
 if __name__ == '__main__':
     argv = sys.argv
 
-    if len(argv) == 3:
+    if len(argv) != 2:
         print('usage: mbox_parser.py [path_to_mbox]')
-    else:
-        # load environment settings
-        load_dotenv(verbose=True)
-
         mbox_file = "example.mbox"
-        file_name = ntpath.basename(mbox_file).lower()
-        export_file_name = mbox_file + ".csv"
-        export_file = open(export_file_name, "wb")
+    else:
+        mbox_file = argv[1]
 
-        # get owner(s) of the mbox
-        owners = []
-        if os.path.exists(".owners"):
-            with open('.owners', 'r') as ownerlist:
-                contents = ownerlist.read()
-                owner_dict = ast.literal_eval(contents)
-            # find owners
-            for owners_array_key in owner_dict:
-                if owners_array_key in file_name:
-                    for owner_key in owner_dict[owners_array_key]:
-                        owners.append(owner_key)
+    # load environment settings
+    load_dotenv(verbose=True)
 
-        # get domain blacklist
-        blacklist_domains = []
-        if os.path.exists(".blacklist"):
-            with open('.blacklist', 'r') as blacklist:
-                blacklist_domains = [domain.rstrip() for domain in blacklist.readlines()]
 
-        # create CSV with header row
-        writer = csv.writer(export_file, encoding='utf-8', delimiter="\n", quotechar="\n")
-        # writer.writerow(["flagged", "date", "description", "from", "to", "cc", "subject", "content", "time (minutes)"])
+    file_name = ntpath.basename(mbox_file).lower()
+    export_file_name = mbox_file + ".csv"
+    export_file = open(export_file_name, "wb")
 
-        # create row count
-        row_written = 0
+    # get owner(s) of the mbox
+    owners = []
+    if os.path.exists(".owners"):
+        with open('.owners', 'r') as ownerlist:
+            contents = ownerlist.read()
+            owner_dict = ast.literal_eval(contents)
+        # find owners
+        for owners_array_key in owner_dict:
+            if owners_array_key in file_name:
+                for owner_key in owner_dict[owners_array_key]:
+                    owners.append(owner_key)
 
-        for email in mailbox.mbox(mbox_file):
-            # capture default content
-            date = get_date(email["date"], os.getenv("DATE_FORMAT"))
-            sent_from = get_emails_clean(email["from"])
-            sent_to = get_emails_clean(email["to"])
-            cc = get_emails_clean(email["cc"])
-            subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
-            contents = get_content(email)
+    # get domain blacklist
+    blacklist_domains = []
+    if os.path.exists(".blacklist"):
+        with open('.blacklist', 'r') as blacklist:
+            blacklist_domains = [domain.rstrip() for domain in blacklist.readlines()]
 
-            # apply rules to default content
-            row = rules.apply_rules(date, sent_from, sent_to, cc, subject, contents, owners, blacklist_domains)
+    # create CSV with header row
+    writer = csv.writer(export_file, encoding='utf-8', delimiter="\n", quotechar="\n")
+    # writer.writerow(["flagged", "date", "description", "from", "to", "cc", "subject", "content", "time (minutes)"])
 
-            # write the row
-            writer.writerow(row)
-            row_written += 1
+    # create row count
+    row_written = 0
 
-        # report
-        report = "generated " + export_file_name + " for " + str(row_written) + " messages"
-        report += " (" + str(rules.cant_convert_count) + " could not convert; "
-        report += str(rules.blacklist_count) + " blacklisted)"
-        print(report)
+    for email in mailbox.mbox(mbox_file):
+        # capture default content
+        date = get_date(email["date"], os.getenv("DATE_FORMAT"))
+        sent_from = get_emails_clean(email["from"])
+        sent_to = get_emails_clean(email["to"])
+        cc = get_emails_clean(email["cc"])
+        subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
+        contents = get_content(email)
 
-        export_file.close()
+        # apply rules to default content
+        row = rules.apply_rules(date, sent_from, sent_to, cc, subject, contents, owners, blacklist_domains)
+
+        # write the row
+        writer.writerow(row)
+        row_written += 1
+
+    # report
+    report = "generated " + export_file_name + " for " + str(row_written) + " messages"
+    report += " (" + str(rules.cant_convert_count) + " could not convert; "
+    report += str(rules.blacklist_count) + " blacklisted)"
+    print(report)
+
+    export_file.close()
