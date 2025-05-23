@@ -27,6 +27,7 @@ def get_date(date_header, date_format):
     except Exception:
         return None
 
+
 # clean content
 def clean_content(content):
     content = quopri.decodestring(content)
@@ -35,6 +36,7 @@ def clean_content(content):
     except Exception:
         return ''
     return ''.join(soup.find_all(string=True))
+
 
 # get contents of email
 def get_content(email):
@@ -55,15 +57,19 @@ def get_content(email):
 
     return parts[0] if parts else ""
 
+
 # get all emails in field
 def get_emails_clean(field):
-    matches = re.findall(r'\<?([a-zA-Z0-9_\-\.]+@[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,5})\>?', str(field))
+    matches = re.findall(
+        r'\<?([a-zA-Z0-9_\-\.]+@[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,5})\>?', str(field)
+    )
     if matches:
         emails_cleaned = [match.lower() for match in matches]
         unique_emails = list(set(emails_cleaned))
         return sorted(unique_emails, key=str.lower)
     else:
         return []
+
 
 # entry point
 if __name__ == '__main__':
@@ -74,7 +80,6 @@ if __name__ == '__main__':
         mbox_file = "example.mbox"
     else:
         mbox_file = argv[1]
-
 
     load_dotenv(verbose=True)
     file_name = ntpath.basename(mbox_file).lower()
@@ -121,7 +126,16 @@ if __name__ == '__main__':
             subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
             contents = get_content(email)
 
-            row = rules.apply_rules(date, sent_from, sent_to, cc, subject, contents, owners, blacklist_domains)
+            row = rules.apply_rules(
+                date,
+                sent_from,
+                sent_to,
+                cc,
+                subject,
+                contents,
+                owners,
+                blacklist_domains,
+            )
             f.write("\n".join(row).encode("latin_1"))
             row_written += 1
 
@@ -130,4 +144,3 @@ if __name__ == '__main__':
         f"({rules.cant_convert_count} could not convert; {rules.blacklist_count} blacklisted)"
     )
     print(report)
-
