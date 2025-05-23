@@ -1,10 +1,3 @@
-import string
-
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-from email_reply_parser import EmailReplyParser
-from email.utils import parsedate_tz, mktime_tz
-
 import ast
 import datetime
 import mailbox
@@ -12,9 +5,15 @@ import ntpath
 import os
 import quopri
 import re
-import rules
 import sys
-import unicodecsv as csv
+from email.utils import parsedate_tz, mktime_tz
+
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from email_reply_parser import EmailReplyParser
+
+import rules
+
 
 # converts seconds since epoch to mm/dd/yyyy string
 def get_date(date_header, date_format):
@@ -79,8 +78,7 @@ if __name__ == '__main__':
 
     load_dotenv(verbose=True)
     file_name = ntpath.basename(mbox_file).lower()
-    export_file_name = mbox_file + ".csv"
-    export_file = open(export_file_name, "wb")
+    export_file_name = mbox_file + ".txt"
 
     # Load owner mapping if exists
     owners = []
@@ -96,8 +94,6 @@ if __name__ == '__main__':
     if os.path.exists(".blacklist"):
         with open('.blacklist', 'r') as blacklist:
             blacklist_domains = [domain.rstrip() for domain in blacklist.readlines()]
-
-    writer = csv.writer(export_file, delimiter="\n", quotechar="\n")
 
     # --- COLLECT AND SORT EMAILS ---
     emails_with_dates = []
@@ -116,21 +112,22 @@ if __name__ == '__main__':
     # --- PROCESS SORTED EMAILS ---
     row_written = 0
 
-    for _, email in emails_with_dates:
-        date = get_date(email["date"], os.getenv("DATE_FORMAT"))
-        sent_from = get_emails_clean(email["from"])
-        sent_to = get_emails_clean(email["to"])
-        cc = get_emails_clean(email["cc"])
-        subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
-        contents = get_content(email)
+    with open(export_file_name, 'wb') as f:
+        for _, email in emails_with_dates:
+            date = get_date(email["date"], os.getenv("DATE_FORMAT"))
+            sent_from = get_emails_clean(email["from"])
+            sent_to = get_emails_clean(email["to"])
+            cc = get_emails_clean(email["cc"])
+            subject = re.sub('[\n\t\r]', ' -- ', str(email["subject"]))
+            contents = get_content(email)
 
-        row = rules.apply_rules(date, sent_from, sent_to, cc, subject, contents, owners, blacklist_domains)
-        writer.writerow(row)
-        row_written += 1
+            row = rules.apply_rules(date, sent_from, sent_to, cc, subject, contents, owners, blacklist_domains)
+            f.write("\n".join(row).encode("latin_1"))
+            row_written += 1
 
     report = (
         f"generated {export_file_name} for {row_written} messages "
         f"({rules.cant_convert_count} could not convert; {rules.blacklist_count} blacklisted)"
     )
     print(report)
-    export_file.close()
+
