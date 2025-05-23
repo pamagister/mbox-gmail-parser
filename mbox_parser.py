@@ -35,7 +35,7 @@ def clean_content(content):
         soup = BeautifulSoup(content, "html.parser", from_encoding="iso-8859-1")
     except Exception as e:
         return ''
-    return ''.join(soup.findAll(text=True))
+    return ''.join(soup.find_all(string=True))
 
 # get contents of email
 def get_content(email):
@@ -74,13 +74,13 @@ def get_emails_clean(field):
 if __name__ == '__main__':
     argv = sys.argv
 
-    if len(argv) != 2:
+    if len(argv) == 3:
         print('usage: mbox_parser.py [path_to_mbox]')
     else:
         # load environment settings
         load_dotenv(verbose=True)
 
-        mbox_file = argv[1]
+        mbox_file = "example.mbox"
         file_name = ntpath.basename(mbox_file).lower()
         export_file_name = mbox_file + ".csv"
         export_file = open(export_file_name, "wb")
@@ -104,8 +104,8 @@ if __name__ == '__main__':
                 blacklist_domains = [domain.rstrip() for domain in blacklist.readlines()]
 
         # create CSV with header row
-        writer = csv.writer(export_file, encoding='utf-8')
-        writer.writerow(["flagged", "date", "description", "from", "to", "cc", "subject", "content", "time (minutes)"])
+        writer = csv.writer(export_file, encoding='utf-8', delimiter="\n", quotechar="\n")
+        # writer.writerow(["flagged", "date", "description", "from", "to", "cc", "subject", "content", "time (minutes)"])
 
         # create row count
         row_written = 0

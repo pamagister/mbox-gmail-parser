@@ -75,6 +75,9 @@ Content-Type: multipart/alternative; boundary="f403045e2bc2b36fb30555eea7cd"
 Content-Type: text/plain; charset="UTF-8"
 
 This is the first test email.
+With three lines
+
+Best regards
 
 --
 Tester One
@@ -105,6 +108,7 @@ Content-Type: multipart/alternative; boundary="f4030436abb2861a710555eea829"
 Content-Type: text/plain; charset="UTF-8"
 
 This is a second test email.
+this contains some lines
 
 --
 Tester One
