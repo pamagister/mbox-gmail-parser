@@ -1,84 +1,29 @@
-import ast
+import argparse
 import datetime
 import mailbox
-import ntpath
 import os
 import quopri
 import re
-import sys
 from email.header import decode_header
 from email.utils import parsedate_tz, mktime_tz
-from math import inf
 
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from email_reply_parser import EmailReplyParser
+from math import inf
 
 
-# converts seconds since epoch to mm/dd/yyyy string
-def get_date(date_header, date_format):
+def parse_date(date_header, date_format):
     if date_header is None:
         return None
     try:
         time_tuple = parsedate_tz(date_header)
-        utc_seconds_since_epoch = mktime_tz(time_tuple)
-        datetime_obj = datetime.datetime.fromtimestamp(utc_seconds_since_epoch)
-        return datetime_obj.strftime(date_format)
+        if time_tuple is None:
+            return None
+        timestamp = mktime_tz(time_tuple)
+        return datetime.datetime.fromtimestamp(timestamp).strftime(date_format)
     except Exception:
         return None
-
-
-# clean content
-def clean_content(content_bytes):
-    # decode quoted-printable
-    content_bytes = quopri.decodestring(content_bytes)
-
-    # Try UTF-8 first, fallback to ISO-8859-1
-    try:
-        content_str = content_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        content_str = content_bytes.decode("iso-8859-1", errors="replace")
-
-    # HTML-Tags entfernen
-    try:
-        soup = BeautifulSoup(content_str, "html.parser")
-    except Exception as e:
-        return ''
-
-    return ''.join(soup.find_all(string=True))
-
-
-# get contents of email
-def get_content(email):
-    parts = []
-
-    for part in email.walk():
-        if part.get_content_maintype() == 'multipart':
-            continue
-
-        content = part.get_payload(decode=True)
-
-        if content is None:
-            part_contents = ""
-        else:
-            part_contents = EmailReplyParser.parse_reply(clean_content(content))
-
-        parts.append(part_contents)
-
-    return parts[0] if parts else ""
-
-
-# get all emails in field
-def get_emails_clean(field):
-    matches = re.findall(
-        r'\<?([a-zA-Z0-9_\-\.]+@[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,5})\>?', str(field)
-    )
-    if matches:
-        emails_cleaned = [match.lower() for match in matches]
-        unique_emails = list(set(emails_cleaned))
-        return sorted(unique_emails, key=str.lower)
-    else:
-        return []
 
 
 def decode_mime_header(value):
@@ -97,74 +42,133 @@ def decode_mime_header(value):
     return result
 
 
-# entry point
-if __name__ == '__main__':
-    argv = sys.argv
+def clean_content(content_bytes):
+    content_bytes = quopri.decodestring(content_bytes)
+    try:
+        content_str = content_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        content_str = content_bytes.decode("iso-8859-1", errors="replace")
+    try:
+        soup = BeautifulSoup(content_str, "html.parser")
+        return ''.join(soup.find_all(string=True))
+    except Exception:
+        return ''
 
-    if len(argv) != 2:
-        print('usage: mbox_parser.py [path_to_mbox]')
-        mbox_file = "example.mbox"
-    else:
-        mbox_file = argv[1]
 
+def extract_content(email):
+    for part in email.walk():
+        if part.get_content_maintype() == 'multipart':
+            continue
+        content = part.get_payload(decode=True)
+        if content:
+            return EmailReplyParser.parse_reply(clean_content(content))
+    return ''
+
+
+def extract_emails(field):
+    matches = re.findall(r'\<?([a-zA-Z0-9_\-.]+@[a-zA-Z0-9_\-.]+\.[a-zA-Z]{2,5})\>?', str(field))
+    unique_emails = sorted(set(match.lower() for match in matches))
+    return unique_emails
+
+
+def build_email_output(email, options, date_format):
+    lines = []
+
+    if options["from"]:
+        lines.append("From: {}".format(', '.join(extract_emails(email.get("from", "")))))
+    if options["to"]:
+        lines.append("To: {}".format(', '.join(extract_emails(email.get("to", "")))))
+    if options["date"]:
+        date_str = parse_date(email.get("date"), date_format)
+        lines.append("Date: {}".format(date_str or "Unknown"))
+    if options["subject"]:
+        lines.append("Subject: {}".format(decode_mime_header(email.get("subject", ""))))
+
+    content = extract_content(email)
+    lines.append('\n' + content + '\n-----\n\n')
+    return "\n".join(lines)
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Parse mbox file and export to text.")
+
+    parser.add_argument(
+        "--from", dest="from_", default="ON", choices=["ON", "OFF"],
+        help="Include 'From' field in output (default: ON)"
+    )
+    parser.add_argument(
+        "--to", default="ON", choices=["ON", "OFF"],
+        help="Include 'To' field in output (default: ON)"
+    )
+    parser.add_argument(
+        "--date", default="ON", choices=["ON", "OFF"],
+        help="Include 'Date' field in output (default: ON)"
+    )
+    parser.add_argument(
+        "--subject", default="ON", choices=["ON", "OFF"],
+        help="Include 'Subject' field in output (default: ON)"
+    )
+    parser.add_argument("mbox_file", help="Path to mbox file")
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
     load_dotenv(verbose=True)
-    export_file_name = mbox_file + ".txt"
 
-    # --- COLLECT AND SORT EMAILS ---
-    emails_with_dates = []
+    date_format = os.getenv("DATE_FORMAT", "%Y-%m-%d")
+    mbox_path = args.mbox_file
+    base_output_name = os.path.basename(mbox_path) + ".txt"
 
-    for email in mailbox.mbox(mbox_file):
+    include_options = {
+        "from": args.from_ == "ON",
+        "to": args.to == "ON",
+        "date": args.date == "ON",
+        "subject": args.subject == "ON",
+    }
+
+    emails = []
+    for msg in mailbox.mbox(mbox_path):
         try:
-            time_tuple = parsedate_tz(email["date"])
-            utc_seconds_since_epoch = mktime_tz(time_tuple)
+            timestamp = mktime_tz(parsedate_tz(msg.get("date", ""))) or 0
         except Exception:
-            utc_seconds_since_epoch = 0  # fallback if date is missing or unparsable
-        emails_with_dates.append((utc_seconds_since_epoch, email))
+            timestamp = 0
+        emails.append((timestamp, msg))
 
-    # Sort emails by timestamp
-    emails_with_dates.sort(key=lambda tup: tup[0])
+    emails.sort(key=lambda tup: tup[0])
 
-    # --- PROCESS SORTED EMAILS ---
-    max_days = -1
-    if max_days <= 0:
-        max_days = inf
-    row_written = 0
-    file_index = 1
+    max_days = inf
     last_date = None
+    file_index = 1
+    row_written = 0
     f = None
 
-    for _, email in emails_with_dates:
-        # Compare with last file
-        date_str = get_date(email["date"], os.getenv("DATE_FORMAT"))
-        email_date = datetime.datetime.strptime(date_str, os.getenv("DATE_FORMAT"))
+    for timestamp, email in emails:
+        email_date_str = parse_date(email.get("date"), date_format)
+        if email_date_str:
+            email_date = datetime.datetime.strptime(email_date_str, date_format)
+        else:
+            email_date = datetime.datetime.min
 
         if last_date is None or (email_date - last_date).days > max_days:
             if f:
                 f.close()
-            filename = f"{export_file_name}_{file_index:03}.txt"
-            f = open(filename, 'wb')
-            print(f"Write new wile: {filename}")
+            filename = f"{base_output_name}_{file_index:03}.txt"
+            f = open(filename, "w", encoding="utf-8")
+            print(f"Writing new file: {filename}")
             file_index += 1
             last_date = email_date
 
-        sent_from = "From: {}".format(get_emails_clean(email["from"]))
-        date = "Date: {}".format(date_str)
-        sent_to = "To: {}".format(get_emails_clean(email["to"]))
-        cc = "Subject: {}".format(get_emails_clean(email["cc"]))
-        subject = "Subject: {}".format(decode_mime_header((email["subject"])))
-        contents = get_content(email)
-
-        mailContent = [
-            sent_from,
-            sent_to,
-            date,
-            subject,
-            '\n' + contents + '\n-----\n\n',
-        ]
-        f.write("\n".join(mailContent).encode("utf-8"))
+        output = build_email_output(email, include_options, date_format)
+        f.write(output)
         row_written += 1
 
-    report = (
-        f"generated {export_file_name} for {row_written} messages "
-    )
-    print(report)
+    if f:
+        f.close()
+
+    print(f"Generated output for {row_written} messages into {file_index - 1} file(s).")
+
+
+if __name__ == "__main__":
+    main()

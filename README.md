@@ -17,10 +17,10 @@ cp .env.example .env
 source env/bin/activate
 
 # install the required packages
-python3 -m pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # run tool using example file
-python3 mbox_parser.py example.mbox
+python mbox_parser.py [--from OFF] [--to OFF] [--date OFF] [--subject OFF] path/to/file.mbox
 
 # deactivate virtual environment
 deactivate
