@@ -3,8 +3,8 @@ name: Build Windows EXE
 on:
   push:
     tags:
-      - 'v*'         # optional: nur bei Releases wie v1.0.0
-  workflow_dispatch:  # auch manuell auslösbar
+      - 'v*'  # Triggert nur bei Tags wie v0.1.3
+  workflow_dispatch:  # Erlaubt manuelles Auslösen
 
 jobs:
   build:
@@ -32,14 +32,10 @@ jobs:
           venv\Scripts\activate
           pyinstaller --onefile mbox_parser_gui.py --name MboxParserGUI
 
-      - name: Upload EXE Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MboxParserGUI.exe
-          path: dist/MboxParserGUI.exe
-
-      - name: Upload EXE to Release
+      - name: Upload EXE to GitHub Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: dist/MboxParserGUI.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
