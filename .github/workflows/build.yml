@@ -37,3 +37,9 @@ jobs:
         with:
           name: MboxParserGUI.exe
           path: dist/MboxParserGUI.exe
+
+      - name: Upload EXE to Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/mbox_parser_gui.exe
