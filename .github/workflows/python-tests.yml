@@ -2,9 +2,9 @@ name: Run Python Tests
 
 on:
   push:
-    - '**'  # alle Branches
+    branches: [ master ]
   pull_request:
-    - '**'  # auch bei PRs gegen beliebige Branches
+    branches: [ master ]
   workflow_dispatch:  # auch manuell auslösbar
 
 jobs:
