@@ -30,7 +30,7 @@ jobs:
       - name: Build EXE with PyInstaller
         run: |
           venv\Scripts\activate
-          pyinstaller --onefile mbox_parser_gui.py.py --name MboxParserGUI
+          pyinstaller --onefile mbox_parser_gui.py --name MboxParserGUI
 
       - name: Upload EXE Artifact
         uses: actions/upload-artifact@v4
