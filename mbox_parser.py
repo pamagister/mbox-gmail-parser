@@ -12,6 +12,15 @@ from dotenv import load_dotenv
 from email_reply_parser import EmailReplyParser
 from math import inf
 
+'''
+generate a gui application
+
+pip install pyinstaller
+pyinstaller --onefile --windowed mbox_parser_gui.py
+
+'''
+
+
 
 def parse_date(date_header, date_format):
     if date_header is None:

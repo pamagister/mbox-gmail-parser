@@ -25,7 +25,7 @@ class MboxParserGUI:
 
         # MBOX selection
         tk.Label(frame, text="MBOX File:").grid(row=0, column=0, sticky="w")
-        tk.Entry(frame, textvariable=self.mbox_path, width=50).grid(row=0, column=1)
+        tk.Entry(frame, textvariable=self.mbox_path, width=40).grid(row=0, column=1)
         tk.Button(frame, text="Browse...", command=self.select_file).grid(
             row=0, column=2
         )
@@ -51,17 +51,20 @@ class MboxParserGUI:
         ).grid(row=5, column=0, sticky="w")
 
         # Max Days
-        tk.Label(frame, text="Max Days per File (blank = unlimited):").grid(
+        tk.Label(frame, text="Max Days per File:").grid(
             row=6, column=0, sticky="w"
         )
-        tk.Entry(frame, textvariable=self.max_days, width=10).grid(
+        tk.Entry(frame, textvariable=self.max_days, width=40).grid(
             row=6, column=1, sticky="w"
+        )
+        tk.Label(frame, text="blank = unlimited").grid(
+            row=6, column=2, sticky="w"
         )
 
         # Run Button
         tk.Button(
             frame, text="Run Parser", command=self.run_parser, bg="#4CAF50", fg="white"
-        ).grid(row=9, column=2, columnspan=3, pady=10)
+        ).grid(row=9, column=1, columnspan=1, pady=10)
 
     def select_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("MBOX files", "*.mbox")])
