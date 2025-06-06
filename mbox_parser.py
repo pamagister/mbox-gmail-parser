@@ -113,39 +113,6 @@ def build_csv_output(email, email_date_str, include_options):
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Parse mbox file and export to text.")
-
-    parser.add_argument(
-        "--from",
-        dest="from_",
-        default="ON",
-        choices=["ON", "OFF"],
-        help="Include 'From' field in output (default: ON)",
-    )
-    parser.add_argument(
-        "--to",
-        default="ON",
-        choices=["ON", "OFF"],
-        help="Include 'To' field in output (default: ON)",
-    )
-    parser.add_argument(
-        "--date",
-        default="ON",
-        choices=["ON", "OFF"],
-        help="Include 'Date' field in output (default: ON)",
-    )
-    parser.add_argument(
-        "--subject",
-        default="ON",
-        choices=["ON", "OFF"],
-        help="Include 'Subject' field in output (default: ON)",
-    )
-    parser.add_argument("mbox_file", help="Path to mbox file")
-
-    return parser.parse_args()
-
-
-def main():
     parser = argparse.ArgumentParser(
         description="Parse mbox file and export to text or CSV."
     )
@@ -189,7 +156,11 @@ def main():
     )
     parser.add_argument("mbox_file", help="Path to mbox file")
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main():
+    args = parse_arguments()
     load_dotenv(verbose=True)
 
     date_format = os.getenv("DATE_FORMAT", "%Y-%m-%d")
