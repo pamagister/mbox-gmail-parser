@@ -5,6 +5,7 @@ on:
     - '**'  # alle Branches
   pull_request:
     - '**'  # auch bei PRs gegen beliebige Branches
+  workflow_dispatch:  # auch manuell auslösbar
 
 jobs:
   test:
