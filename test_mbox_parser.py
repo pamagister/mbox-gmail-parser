@@ -1,5 +1,7 @@
-# install pytest and pytest-mock:
+# install pytest and pytest-mock and run tests manually from the terminal:
 # pip install pytest pytest-mock
+# pytest
+
 import datetime
 import pytest
 import types

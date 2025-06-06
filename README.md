@@ -1,3 +1,5 @@
+[![Run Python Tests](https://github.com/pamagister/mbox-gmail-parser/actions/workflows/python-tests.yml/badge.svg)](https://github.com/maxmustermann/mbox-parser/actions/workflows/python-tests.yml)
+
 # MBOX Parser
 
 A Python script for parsing and structured export of `.mbox` files.
