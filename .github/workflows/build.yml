@@ -1,0 +1,39 @@
+name: Build Windows EXE
+
+on:
+  push:
+    tags:
+      - 'v*'         # optional: nur bei Releases wie v1.0.0
+  workflow_dispatch:  # auch manuell auslösbar
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          venv\Scripts\activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build EXE with PyInstaller
+        run: |
+          venv\Scripts\activate
+          pyinstaller --onefile mbox_parser_gui.py.py --name MboxParserGUI
+
+      - name: Upload EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MboxParserGUI.exe
+          path: dist/MboxParserGUI.exe

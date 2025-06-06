@@ -48,7 +48,7 @@ python mbox_parser.py [OPTIONS] path/to/file.mbox
 
 ## 💡 Examples
 
-Gegeben: `example.mbox` im aktuellen Verzeichnis
+In the example, the following is assumed: `example.mbox` in the current directory
 
 ### 1. standard version (all fields, text format)
 
