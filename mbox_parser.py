@@ -108,23 +108,7 @@ if __name__ == '__main__':
         mbox_file = argv[1]
 
     load_dotenv(verbose=True)
-    file_name = ntpath.basename(mbox_file).lower()
     export_file_name = mbox_file + ".txt"
-
-    # Load owner mapping if exists
-    owners = []
-    if os.path.exists(".owners"):
-        with open('.owners', 'r') as ownerlist:
-            owner_dict = ast.literal_eval(ownerlist.read())
-        for owners_array_key in owner_dict:
-            if owners_array_key in file_name:
-                owners.extend(owner_dict[owners_array_key])
-
-    # Load domain blacklist if exists
-    blacklist_domains = []
-    if os.path.exists(".blacklist"):
-        with open('.blacklist', 'r') as blacklist:
-            blacklist_domains = [domain.rstrip() for domain in blacklist.readlines()]
 
     # --- COLLECT AND SORT EMAILS ---
     emails_with_dates = []
@@ -182,6 +166,5 @@ if __name__ == '__main__':
 
     report = (
         f"generated {export_file_name} for {row_written} messages "
-        f"({rules.cant_convert_count} could not convert; {rules.blacklist_count} blacklisted)"
     )
     print(report)
