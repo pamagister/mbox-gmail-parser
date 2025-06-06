@@ -14,7 +14,7 @@ Useful for analyzing, archiving or further processing e-mail correspondence.
 ```bash
 # Create virtual environment (optional, recommended)
 python -m venv env
-source env/bin/activate  # Windows: .\env\Scripts\activate
+source env/bin/activate  # Windows: .\.venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -94,6 +94,74 @@ example_002.txt
 ```bash
 deactivate
 ```
+
+Certainly! Here's an additional chapter you can include in your `README.md` file under the title:
+
+---
+
+## 🖱️ Usage by Drag-and-Drop
+
+You can also run the parser conveniently by dragging and dropping `.mbox` files onto the provided startup scripts. This is especially useful for non-technical users or quick one-off processing.
+
+---
+
+### 🪟 Windows (`.bat` file)
+
+#### File: `run_mbox_parser.bat` or `setup_and_run.bat`
+
+**Steps:**
+
+1. Make sure `mbox_parser.py`, `requirements.txt`, and the `.bat` file are in the same directory.
+2. Drag a `.mbox` file and drop it onto the `.bat` file (e.g. `example.mbox`).
+3. The script will:
+
+   * create a virtual environment (if not already present),
+   * install all dependencies,
+   * run the parser with default options.
+
+> 💡 Output files will be created in the same directory, with names like `example_001.txt` or `example_001.csv`.
+
+---
+
+### 🐧 Linux/macOS (`.sh` file)
+
+#### File: `setup_and_run.sh`
+
+**Steps:**
+
+1. Place `setup_and_run.sh`, `mbox_parser.py`, and `requirements.txt` in the same directory.
+
+2. Make the script executable:
+
+   ```bash
+   chmod +x setup_and_run.sh
+   ```
+
+3. Open a terminal.
+
+4. Drag your `.mbox` file into the terminal window — it will paste the full path.
+
+5. Complete the command like this:
+
+   ```bash
+   ./setup_and_run.sh /full/path/to/example.mbox
+   ```
+
+6. The script will:
+
+   * create and activate a `.venv` if needed,
+   * install requirements,
+   * and run the parser on the file.
+
+---
+
+### 📝 Notes
+
+* The `.venv` directory will be reused across runs.
+* You can modify the batch or shell script to hard-code specific parser options (like `--format csv`), if desired.
+
+Let me know if you’d like a version that includes GUI elements (e.g., file picker dialogs).
+
 
 
 ## References
