@@ -1,38 +1,100 @@
-# MBOX to CSV
+# MBOX Parser
 
-![Python 3.8.3](https://img.shields.io/badge/python-3.8.3-yellow.svg)
-
-Extract emails from an MBOX file into a CSV file.
+A Python script for parsing and structured export of `.mbox` files.
+Supports output in text or CSV format with optional on/off email fields.
+Useful for analyzing, archiving or further processing e-mail correspondence.
 
 ## Example
 
+
+## Setup & execution
+
+### 1. prepare the repository
+
 ```bash
-# make a copy of rules.example.py named rules.py
-cp rules.example.py rules.py
+# Create virtual environment (optional, recommended)
+python -m venv env
+source env/bin/activate  # Windows: .\env\Scripts\activate
 
-# make a copy of .env.example named .env
-cp .env.example .env
+# Install dependencies
+pip install -r requirements.txt
 
-# launch virtual environment with included dependencies
-source env/bin/activate
+````
 
-# install the required packages
-python -m pip install -r requirements.txt
 
-# run tool using example file
-python mbox_parser.py [--from OFF] [--to OFF] [--date OFF] [--subject OFF] path/to/file.mbox
+### 2. Execute script
 
-# deactivate virtual environment
+```bash
+python mbox_parser.py [OPTIONS] path/to/file.mbox
+```
+
+---
+
+## ⚙️ CLI-Optionen
+
+| Option              | Typ        | Description                                                               | Default value  |
+| ------------------- |------------|---------------------------------------------------------------------------|----------------|
+| `--from`            | `ON/OFF`   | Outputs the sender address                                                | `ON`           |
+| `--to`              | `ON/OFF`   | Outputs the recipient address                                             | `ON`           |
+| `--date`            | `ON/OFF`   | Outputs the shipping date                                                 | `ON`           |
+| `--subject`         | `ON/OFF`   | Outputs the subject                                                       | `ON`           |
+| `--format`          | `txt/csv`  | Defines the output format (text file or CSV file)                         | `txt`          |
+| `--max_days`        | Number     | Maximum number of days per output file (e.g. '7' for weekly splits)       | `inf`          |
+| `path/to/file.mbox` | File       | Path to the MBOX file to be processed                                     | *required* |
+
+---
+
+## 💡 Examples
+
+Gegeben: `example.mbox` im aktuellen Verzeichnis
+
+### 1. standard version (all fields, text format)
+
+```bash
+python mbox_parser.py example.mbox
+```
+
+### 2. sender & subject only, in CSV format
+
+```bash
+python mbox_parser.py --to OFF --date OFF --format csv example.mbox
+```
+
+### 3. grouping of issues by week (7 days per file)
+
+```bash
+python mbox_parser.py --max_days 7 example.mbox
+```
+
+### 4. complete control (subject only, CSV, grouped daily)
+
+```bash
+python mbox_parser.py --from OFF --to OFF --date OFF --format csv --max_days 1 example.mbox
+```
+
+---
+
+## 📁 Output
+
+* **Text mode (`--format txt`)**: Contains structured text blocks with fields and e-mail content.
+* **CSV Mode (`--format csv`)**: CSV file with one line per mail. Fields correspond to the activated CLI options.
+
+The output files are numbered automatically:
+
+```bash
+example_001.txt
+example_002.txt
+...
+```
+
+---
+
+## 🔚 Exiting the virtual environment
+
+```bash
 deactivate
 ```
 
-## Embedding Python Interpreter and Dependencies into Platypus-Built App
-
-With some manual effort, it is possible to package this script as a drag-and-drop Platypus-built Mac app. In order to do this, we are required to bundle a python installation (interpreter and dependencies) within the app's resources. This is possible by following the guide below.
-
-- [Adding Embedded Python Interpreter](http://joaoventura.net/blog/2016/embeddable-python-osx/)
-
-Once you are done with this guide, then you need to remove the `python3.8/lib/python3.8/site-packages` symlink and replace it with the `site-packages` that have been installed in your virtual environment as you were developing.
 
 ## References
 

@@ -66,16 +66,20 @@ def extract_content(email):
 
 
 def extract_emails(field):
-    matches = re.findall(r'\<?([a-zA-Z0-9_\-.]+@[a-zA-Z0-9_\-.]+\.[a-zA-Z]{2,5})\>?', str(field))
+    matches = re.findall(
+        r'\<?([a-zA-Z0-9_\-.]+@[a-zA-Z0-9_\-.]+\.[a-zA-Z]{2,5})\>?', str(field)
+    )
     unique_emails = sorted(set(match.lower() for match in matches))
     return unique_emails
 
 
-def build_email_output(email, options, date_format):
+def build_txt_output(email, options, date_format):
     lines = []
 
     if options["from"]:
-        lines.append("From: {}".format(', '.join(extract_emails(email.get("from", "")))))
+        lines.append(
+            "From: {}".format(', '.join(extract_emails(email.get("from", ""))))
+        )
     if options["to"]:
         lines.append("To: {}".format(', '.join(extract_emails(email.get("to", "")))))
     if options["date"]:
@@ -89,24 +93,52 @@ def build_email_output(email, options, date_format):
     return "\n".join(lines)
 
 
+def build_csv_output(email, email_date_str, include_options):
+    fields = []
+    if include_options["from"]:
+        fields.append('"{}"'.format(', '.join(extract_emails(email.get("from", "")))))
+    if include_options["to"]:
+        fields.append('"{}"'.format(', '.join(extract_emails(email.get("to", "")))))
+    if include_options["date"]:
+        fields.append('"{}"'.format(email_date_str or ""))
+    if include_options["subject"]:
+        fields.append(
+            '"{}"'.format(
+                decode_mime_header(email.get("subject", "")).replace('"', '""')
+            )
+        )
+    content = extract_content(email).replace('"', '""').replace('\n', ' ').strip()
+    fields.append(f'"{content}"')
+    return fields
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Parse mbox file and export to text.")
 
     parser.add_argument(
-        "--from", dest="from_", default="ON", choices=["ON", "OFF"],
-        help="Include 'From' field in output (default: ON)"
+        "--from",
+        dest="from_",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'From' field in output (default: ON)",
     )
     parser.add_argument(
-        "--to", default="ON", choices=["ON", "OFF"],
-        help="Include 'To' field in output (default: ON)"
+        "--to",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'To' field in output (default: ON)",
     )
     parser.add_argument(
-        "--date", default="ON", choices=["ON", "OFF"],
-        help="Include 'Date' field in output (default: ON)"
+        "--date",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'Date' field in output (default: ON)",
     )
     parser.add_argument(
-        "--subject", default="ON", choices=["ON", "OFF"],
-        help="Include 'Subject' field in output (default: ON)"
+        "--subject",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'Subject' field in output (default: ON)",
     )
     parser.add_argument("mbox_file", help="Path to mbox file")
 
@@ -114,12 +146,57 @@ def parse_arguments():
 
 
 def main():
-    args = parse_arguments()
+    parser = argparse.ArgumentParser(
+        description="Parse mbox file and export to text or CSV."
+    )
+
+    parser.add_argument(
+        "--from",
+        dest="from_",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'From' field in output (default: ON)",
+    )
+    parser.add_argument(
+        "--to",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'To' field in output (default: ON)",
+    )
+    parser.add_argument(
+        "--date",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'Date' field in output (default: ON)",
+    )
+    parser.add_argument(
+        "--subject",
+        default="ON",
+        choices=["ON", "OFF"],
+        help="Include 'Subject' field in output (default: ON)",
+    )
+    parser.add_argument(
+        "--format",
+        default="txt",
+        choices=["txt", "csv"],
+        help="Output format: txt or csv (default: txt)",
+    )
+    parser.add_argument(
+        "--max_days",
+        type=int,
+        default=-1,
+        help="Max number of days per output file (default: unlimited)",
+    )
+    parser.add_argument("mbox_file", help="Path to mbox file")
+
+    args = parser.parse_args()
     load_dotenv(verbose=True)
 
     date_format = os.getenv("DATE_FORMAT", "%Y-%m-%d")
     mbox_path = args.mbox_file
-    base_output_name = os.path.basename(mbox_path) + ".txt"
+    base_output_name = os.path.splitext(os.path.basename(mbox_path))[0]
+    file_extension = args.format
+    output_template = f"{base_output_name}_{{:03d}}.{file_extension}"
 
     include_options = {
         "from": args.from_ == "ON",
@@ -127,6 +204,8 @@ def main():
         "date": args.date == "ON",
         "subject": args.subject == "ON",
     }
+
+    max_days = args.max_days if args.max_days > 0 else inf
 
     emails = []
     for msg in mailbox.mbox(mbox_path):
@@ -138,7 +217,6 @@ def main():
 
     emails.sort(key=lambda tup: tup[0])
 
-    max_days = inf
     last_date = None
     file_index = 1
     row_written = 0
@@ -154,14 +232,37 @@ def main():
         if last_date is None or (email_date - last_date).days > max_days:
             if f:
                 f.close()
-            filename = f"{base_output_name}_{file_index:03}.txt"
-            f = open(filename, "w", encoding="utf-8")
+            filename = output_template.format(file_index)
+            f = open(
+                filename,
+                "w",
+                encoding="utf-8",
+                newline="" if file_extension == "csv" else None,
+            )
             print(f"Writing new file: {filename}")
             file_index += 1
             last_date = email_date
 
-        output = build_email_output(email, include_options, date_format)
-        f.write(output)
+            if file_extension == "csv":
+                header = []
+                if include_options["from"]:
+                    header.append("From")
+                if include_options["to"]:
+                    header.append("To")
+                if include_options["date"]:
+                    header.append("Date")
+                if include_options["subject"]:
+                    header.append("Subject")
+                header.append("Content")
+                f.write(",".join(header) + "\n")
+
+        if file_extension == "txt":
+            output = build_txt_output(email, include_options, date_format)
+            f.write(output)
+        elif file_extension == "csv":
+            fields = build_csv_output(email, email_date_str, include_options)
+            f.write(",".join(fields) + "\n")
+
         row_written += 1
 
     if f:
