@@ -26,7 +26,7 @@ def test_parse_date_invalid():
     assert parse_date("Invalid date", "%Y-%m-%d") is None
 
 def test_decode_mime_header_simple():
-    assert decode_mime_header("Test Subject") == "Test Subject"
+    assert decode_mime_header("Test Subject äöü?ß") == "Test Subject äöü?ß"
 
 def test_decode_mime_header_encoded():
     encoded = "=?UTF-8?B?VGVzdCDDvGJlcg==?="  # "Test über"
