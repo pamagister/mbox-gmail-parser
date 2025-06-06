@@ -6,10 +6,15 @@ A Python script for parsing and structured export of `.mbox` files.
 Supports output in text or CSV format with optional on/off email fields.
 Useful for analyzing, archiving or further processing e-mail correspondence.
 
-## Example
+## 🔽 Download installer
+
+- [⬇️ Download for Windows](https://github.com/pamagister/mbox-gmail-parser/releases/latest/download/MboxParserGUI.exe)
+- [⬇️ Download for macOS](https://github.com/pamagister/mbox-gmail-parser/releases/latest/download/MboxParserGUI-macOS.zip)
 
 
-## Setup & execution
+## Run from source code
+
+Setup & execution
 
 ### 1. prepare the repository
 
