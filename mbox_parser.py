@@ -8,12 +8,11 @@ import re
 import sys
 from email.header import decode_header
 from email.utils import parsedate_tz, mktime_tz
+from math import inf
 
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from email_reply_parser import EmailReplyParser
-
-import rules
 
 
 # converts seconds since epoch to mm/dd/yyyy string
@@ -34,7 +33,7 @@ def clean_content(content_bytes):
     # decode quoted-printable
     content_bytes = quopri.decodestring(content_bytes)
 
-    # Versuche zuerst UTF-8, fallback auf ISO-8859-1
+    # Try UTF-8 first, fallback to ISO-8859-1
     try:
         content_str = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
@@ -142,15 +141,16 @@ if __name__ == '__main__':
     emails_with_dates.sort(key=lambda tup: tup[0])
 
     # --- PROCESS SORTED EMAILS ---
-
-    max_days = 91
+    max_days = -1
+    if max_days <= 0:
+        max_days = inf
     row_written = 0
     file_index = 1
     last_date = None
     f = None
 
     for _, email in emails_with_dates:
-        # Vergleiche mit letzter Datei
+        # Compare with last file
         date_str = get_date(email["date"], os.getenv("DATE_FORMAT"))
         email_date = datetime.datetime.strptime(date_str, os.getenv("DATE_FORMAT"))
 
@@ -163,23 +163,21 @@ if __name__ == '__main__':
             file_index += 1
             last_date = email_date
 
-        sent_from = get_emails_clean(email["from"])
-        sent_to = get_emails_clean(email["to"])
-        cc = get_emails_clean(email["cc"])
-        subject = decode_mime_header((email["subject"]))
+        sent_from = "From: {}".format(get_emails_clean(email["from"]))
+        date = "Date: {}".format(date_str)
+        sent_to = "To: {}".format(get_emails_clean(email["to"]))
+        cc = "Subject: {}".format(get_emails_clean(email["cc"]))
+        subject = "Subject: {}".format(decode_mime_header((email["subject"])))
         contents = get_content(email)
 
-        row = rules.apply_rules(
-            date_str,
+        mailContent = [
             sent_from,
             sent_to,
-            cc,
+            date,
             subject,
-            contents,
-            owners,
-            blacklist_domains,
-        )
-        f.write("\n".join(row).encode("utf-8"))
+            '\n' + contents + '\n-----\n\n',
+        ]
+        f.write("\n".join(mailContent).encode("utf-8"))
         row_written += 1
 
     report = (
